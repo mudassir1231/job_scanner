@@ -117,16 +117,40 @@ function clickNextPage() {
     'button[aria-label="Next page"]',
     '.artdeco-pagination__button--next',
     'a[aria-label="Next"]',
-    'a[aria-label="Next page"]'
+    'a[aria-label="Next page"]',
+    'button[aria-label*="next"]',
+    '.jobs-search-pagination button:not(:disabled)'
   ];
   for (const sel of selectors) {
-    const btn = document.querySelector(sel);
-    if (btn && !btn.disabled) {
-      btn.click();
-      return true;
+    const buttons = document.querySelectorAll(sel);
+    for (const btn of buttons) {
+      // Check if button text contains "next" or it's the last button (next button)
+      if (!btn.disabled && (btn.getAttribute('aria-label')?.toLowerCase().includes('next') || btn.textContent.toLowerCase().includes('next'))) {
+        btn.click();
+        return true;
+      }
     }
   }
   return false;
+}
+
+// Wait for page to load after clicking next
+async function waitForPageLoad(timeout = 5000) {
+  const start = Date.now();
+  let lastCount = 0;
+  
+  while (Date.now() - start < timeout) {
+    const cards = getJobCards();
+    if (cards.length > 0 && cards.length !== lastCount) {
+      // Page content changed, wait a bit more to stabilize
+      await sleep(500);
+      return true;
+    }
+    lastCount = cards.length;
+    await sleep(300);
+  }
+  
+  return getJobCards().length > 0;
 }
 
 async function loadMoreJobs() {
@@ -172,7 +196,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 async function runScan() {
   // Loop pages while scanning is active
+  let pageNumber = 1;
   while (isScanning) {
+    console.log(`Scanning page ${pageNumber}...`);
+    
     // Initial card collection on this page
     allJobCards = getJobCards();
     
@@ -267,13 +294,22 @@ await sleep(jobDelay);
     // at end of current page, attempt to advance
     const moved = clickNextPage();
     if (moved) {
-      // allow page to load
-      await sleep(3000);
-      // continue loop to scan new page
-      continue;
+      console.log(`Moving to page ${pageNumber + 1}...`);
+      pageNumber++;
+      // Wait for new page to load
+      const loadedSuccessfully = await waitForPageLoad(8000);
+      if (loadedSuccessfully) {
+        // continue loop to scan new page
+        await sleep(2000); // Give page extra time to stabilize
+        continue;
+      } else {
+        console.log('Failed to load next page');
+        break;
+      }
     }
 
     // no further pages
+    console.log('No more pages to scan');
     break;
   }
 
