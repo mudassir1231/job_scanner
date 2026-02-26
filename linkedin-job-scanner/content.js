@@ -7,6 +7,13 @@ let allJobCards = [];
 let scanDelay = 2000;
 let searchTerm = '';
 
+// return a random delay within +/-25% of base
+function getRandomDelay(base) {
+  const variation = base * 0.25;
+  // random number between -variation and +variation
+  return base + (Math.random() * 2 - 1) * variation;
+}
+
 function getJobCards() {
   // Try multiple selectors for different LinkedIn layouts
   const selectors = [
@@ -200,10 +207,11 @@ async function runScan() {
 
       // Click the card to load description
       await clickJobCard(card);
-      await sleep(scanDelay);
+      const jobDelay = getRandomDelay(scanDelay);
+      await sleep(jobDelay);
 
       // Wait for description to load
-      const descText = await waitForDescription(scanDelay + 2000);
+      const descText = await waitForDescription(jobDelay + 2000);
 
       let matched = false;
       if (searchTerm && descText.includes(searchTerm)) {
