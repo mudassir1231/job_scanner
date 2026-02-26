@@ -198,17 +198,34 @@ async function runScan() {
       const title = getJobTitle(card);
       const link = getJobLink(card);
 
-      chrome.runtime.sendMessage({
-        action: 'PROGRESS',
-        current: i + 1,
-        total: allJobCards.length,
-        jobTitle: title
-      });
+// Randomly skip 1-2 jobs every ~5 jobs
+const shouldSkip = Math.random() < 0.15; // ~15% chance to skip any given job
+if (shouldSkip) {
+  chrome.runtime.sendMessage({
+    action: 'PROGRESS',
+    current: i + 1,
+    total: allJobCards.length,
+    jobTitle: title,
+    skipped: true,
+    calculatedDelay: null
+  });
+  continue;
+}
 
-      // Click the card to load description
-      await clickJobCard(card);
-      const jobDelay = getRandomDelay(scanDelay);
-      await sleep(jobDelay);
+const jobDelay = getRandomDelay(scanDelay);
+
+chrome.runtime.sendMessage({
+  action: 'PROGRESS',
+  current: i + 1,
+  total: allJobCards.length,
+  jobTitle: title,
+  skipped: false,
+  calculatedDelay: Math.round(jobDelay)
+});
+
+// Click the card to load description
+await clickJobCard(card);
+await sleep(jobDelay);
 
       // Wait for description to load
       const descText = await waitForDescription(jobDelay + 2000);
@@ -222,7 +239,7 @@ async function runScan() {
         const terms = searchTerm.split(',').map(t => t.trim()).filter(t => t.length > 0);
         matched = terms.some(term => descText.includes(term));
       }
-      
+
       if (matched) {
         const jobData = {
           title,

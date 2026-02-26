@@ -54,12 +54,18 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 
   if (msg.action === 'PROGRESS') {
-    const pct = Math.round((msg.current / msg.total) * 100);
-    progressBar.style.width = pct + '%';
-    progressCount.textContent = `${msg.current} / ${msg.total}`;
-    currentJobTitle.textContent = msg.jobTitle || '...';
-    setStatus('active', `Scanning <span>${msg.current}/${msg.total}</span>`);
+  const pct = Math.round((msg.current / msg.total) * 100);
+  progressBar.style.width = pct + '%';
+  progressCount.textContent = `${msg.current} / ${msg.total}`;
+
+  if (msg.skipped) {
+    currentJobTitle.innerHTML = `<span style="color:var(--muted);font-style:italic">⏭ skipped — ${msg.jobTitle}</span>`;
+    setStatus('active', `Scanning <span>${msg.current}/${msg.total}</span> <span style="color:var(--muted);font-size:10px">· skipped</span>`);
+  } else {
+    currentJobTitle.innerHTML = `${msg.jobTitle} <span style="color:var(--muted);font-size:10px">(${(msg.calculatedDelay/1000).toFixed(1)}s)</span>`;
+    setStatus('active', `Scanning <span>${msg.current}/${msg.total}</span> <span style="color:var(--muted);font-size:10px">· wait ${(msg.calculatedDelay/1000).toFixed(1)}s</span>`);
   }
+}
 
   if (msg.action === 'JOB_MATCHED') {
     matchedJobs.push(msg.job);
