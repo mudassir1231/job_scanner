@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LinkedIn Job Scanner</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a26;
+      --border: #2a2a3d;
+      --accent: #00e5ff;
+      --accent2: #7c3aed;
+      --green: #00ffa3;
+      --red: #ff4f6e;
+      --yellow: #ffd60a;
+      --text: #e8e8f0;
+      --muted: #666680;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #0d0d1f 0%, #150f2e 100%);
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 100px; height: 100px;
+      background: radial-gradient(circle, rgba(0,229,255,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .logo {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+    }
+
+    .header p {
+      font-size: 11px;
+      color: var(--muted);
+      padding-left: 38px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+    .status-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
+    .status-dot.stopped { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-text { color: var(--muted); flex: 1; }
+    .status-text span { color: var(--text); }
+
+    /* Main content */
+    .content { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* Form groups */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    input[type="text"], input[type="number"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    /* Delay row */
+    .delay-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .delay-row input[type="number"] { width: 90px; }
+
+    .delay-hint {
+      font-size: 11px;
+      color: var(--muted);
+      flex: 1;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #00b8d9);
+      color: #000;
+      flex: 1;
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,229,255,0.3); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-danger {
+      background: var(--surface);
+      color: var(--red);
+      border: 1px solid var(--red);
+      flex: 1;
+    }
+
+    .btn-danger:hover { background: rgba(255,79,110,0.1); }
+    .btn-danger:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .btn-row { display: flex; gap: 8px; }
+
+    /* Progress */
+    .progress-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: none;
+    }
+
+    .progress-section.visible { display: block; }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .progress-label span:first-child {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .progress-count {
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      color: var(--accent);
+    }
+
+    .progress-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .current-job {
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .current-job span { color: var(--yellow); }
+
+    /* Results */
+    .results-section { display: none; flex-direction: column; gap: 8px; }
+    .results-section.visible { display: flex; }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .results-title {
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .results-count {
+      background: var(--green);
+      color: #000;
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .results-list {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .result-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .result-item:hover {
+      border-color: var(--green);
+      background: var(--surface2);
+      transform: translateX(2px);
+    }
+
+    .result-num {
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      color: var(--muted);
+      flex-shrink: 0;
+      width: 20px;
+    }
+
+    .result-title {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-arrow {
+      color: var(--muted);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Download button */
+    .btn-download {
+      background: var(--surface);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-download:hover { background: rgba(0,255,163,0.08); box-shadow: 0 0 16px rgba(0,255,163,0.15); }
+    .btn-download:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Warning */
+    .warning {
+      background: rgba(255,214,10,0.08);
+      border: 1px solid rgba(255,214,10,0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--yellow);
+      display: none;
+    }
+    .warning.visible { display: block; }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 -20px;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 8px 20px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">🔍</div>
+    <h1>JOB SCANNER</h1>
+  </div>
+  <p>LinkedIn description keyword filter</p>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <div class="status-text" id="statusText">Ready — navigate to LinkedIn Jobs</div>
+</div>
+
+<div class="content">
+
+  <div class="warning" id="warning">
+    ⚠ Please navigate to LinkedIn Jobs search results first.
+  </div>
+
+  <div class="form-group">
+    <label>Search Keyword</label>
+    <!-- default value includes common experience ranges as requested -->
+    <input type="text" id="searchTerm" value="1 year,1+ year, 1-2,1 to 2 year, 0-2 years, 0-3 years, 1-2 years, 1-3 years" placeholder="e.g. React, remote, senior..." />
+  </div>
+
+  <div class="form-group">
+    <label>Delay Between Jobs</label>
+    <div class="delay-row">
+      <input type="number" id="delayInput" value="2000" min="500" max="10000" step="500" />
+      <span class="delay-hint">milliseconds (500–10000)</span>
+    </div>
+    <input type="range" id="delayRange" min="500" max="10000" step="500" value="2000" />
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="startBtn">▶ START SCAN</button>
+    <button class="btn btn-danger" id="stopBtn" disabled>■ STOP</button>
+  </div>
+
+  <div class="progress-section" id="progressSection">
+    <div class="progress-label">
+      <span>SCANNING</span>
+      <span class="progress-count" id="progressCount">0 / 0</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    <div class="current-job">Checking: <span id="currentJobTitle">—</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="results-section" id="resultsSection">
+    <div class="results-header">
+      <span class="results-title">Matched Jobs</span>
+      <span class="results-count" id="matchCount">0</span>
+    </div>
+    <div class="results-list" id="resultsList"></div>
+    <button class="btn-download" id="downloadBtn">⬇ DOWNLOAD RESULTS (.txt)</button>
+  </div>
+
+</div>
+
+<div class="footer">linkedin job scanner v1.0</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
