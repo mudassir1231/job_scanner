@@ -10,7 +10,9 @@
 6. The extension icon will appear in your toolbar
 
 ---
+![Scan Result](output/1.png)
 
+![Scan Result](output/0.png)
 ## How to Use
 
 1. Go to LinkedIn Jobs and run a search  
