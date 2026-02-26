@@ -213,13 +213,16 @@ async function runScan() {
       // Wait for description to load
       const descText = await waitForDescription(jobDelay + 2000);
 
-      let matched = false;
-      if (searchTerm && descText.includes(searchTerm)) {
-        matched = true;
-      } else if (!searchTerm) {
-        matched = true; // no filter, collect all
-      }
 
+      let matched = false;
+      if (!searchTerm) {
+        matched = true; // no filter, collect all
+      } else {
+        // Split by comma, trim whitespace, check each term individually
+        const terms = searchTerm.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        matched = terms.some(term => descText.includes(term));
+      }
+      
       if (matched) {
         const jobData = {
           title,
