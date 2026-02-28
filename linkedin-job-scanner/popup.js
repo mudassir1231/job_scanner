@@ -10,9 +10,11 @@ const stopBtn = document.getElementById('stopBtn');
 const searchTermInput = document.getElementById('searchTerm');
 const delayInput = document.getElementById('delayInput');
 const delayRange = document.getElementById('delayRange');
+const jobsPerPageInput = document.getElementById('jobsPerPage');
 const progressSection = document.getElementById('progressSection');
 const progressBar = document.getElementById('progressBar');
 const progressCount = document.getElementById('progressCount');
+const scanningLabel = document.getElementById('scanningLabel');
 const currentJobTitle = document.getElementById('currentJobTitle');
 const resultsSection = document.getElementById('resultsSection');
 const resultsList = document.getElementById('resultsList');
@@ -50,22 +52,22 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'SCAN_STARTED') {
     totalJobs = msg.total;
     progressSection.classList.add('visible');
-    setStatus('active', `Scanning <span>${totalJobs}</span> jobs`);
+    const pageLabel = msg.page ? ` <span class="page-badge">pg ${msg.page}</span>` : '';
+    scanningLabel.innerHTML = `SCANNING${pageLabel}`;
+    setStatus('active', `Scanning <span>${totalJobs}</span> jobs on page ${msg.page || 1}`);
   }
 
   if (msg.action === 'PROGRESS') {
-  const pct = Math.round((msg.current / msg.total) * 100);
-  progressBar.style.width = pct + '%';
-  progressCount.textContent = `${msg.current} / ${msg.total}`;
+    const pct = Math.round((msg.current / msg.total) * 100);
+    progressBar.style.width = pct + '%';
+    progressCount.textContent = `${msg.current} / ${msg.total}`;
 
-  if (msg.skipped) {
-    currentJobTitle.innerHTML = `<span style="color:var(--muted);font-style:italic">⏭ skipped — ${msg.jobTitle}</span>`;
-    setStatus('active', `Scanning <span>${msg.current}/${msg.total}</span> <span style="color:var(--muted);font-size:10px">· skipped</span>`);
-  } else {
+    const pageLabel = msg.page ? ` <span class="page-badge">pg ${msg.page}</span>` : '';
+    scanningLabel.innerHTML = `SCANNING${pageLabel}`;
+
     currentJobTitle.innerHTML = `${msg.jobTitle} <span style="color:var(--muted);font-size:10px">(${(msg.calculatedDelay/1000).toFixed(1)}s)</span>`;
-    setStatus('active', `Scanning <span>${msg.current}/${msg.total}</span> <span style="color:var(--muted);font-size:10px">· wait ${(msg.calculatedDelay/1000).toFixed(1)}s</span>`);
+    setStatus('active', `Page ${msg.page} · <span>${msg.current}/${msg.total}</span> <span style="color:var(--muted);font-size:10px">· wait ${(msg.calculatedDelay/1000).toFixed(1)}s</span>`);
   }
-}
 
   if (msg.action === 'JOB_MATCHED') {
     matchedJobs.push(msg.job);
@@ -95,9 +97,10 @@ function addResultItem(job) {
   item.target = '_blank';
   item.className = 'result-item';
   item.title = job.title;
+  const pageTag = job.page ? `<span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;margin-left:4px">pg${job.page}</span>` : '';
   item.innerHTML = `
     <span class="result-num">#${job.index}</span>
-    <span class="result-title">${job.title}</span>
+    <span class="result-title">${job.title}${pageTag}</span>
     <span class="result-arrow">↗</span>
   `;
   item.addEventListener('click', (e) => {
@@ -128,6 +131,7 @@ startBtn.addEventListener('click', async () => {
 
   const term = searchTermInput.value.trim();
   const delay = Math.max(500, Math.min(10000, parseInt(delayInput.value) || 2000));
+  const jobsPerPage = Math.max(1, Math.min(50, parseInt(jobsPerPageInput.value) || 5));
 
   // Reset
   matchedJobs = [];
@@ -155,10 +159,10 @@ startBtn.addEventListener('click', async () => {
   chrome.tabs.sendMessage(tab.id, {
     action: 'START_SCAN',
     searchTerm: term,
-    delay
+    delay,
+    jobsPerPage
   }, (response) => {
     if (chrome.runtime.lastError) {
-      // Content script might need injection
       warning.textContent = '⚠ Could not connect to page. Please refresh the LinkedIn Jobs page and try again.';
       warning.classList.add('visible');
       startBtn.disabled = false;
@@ -193,7 +197,7 @@ downloadBtn.addEventListener('click', () => {
   content += `${'='.repeat(60)}\n\n`;
 
   matchedJobs.forEach((job, i) => {
-    content += `${i + 1}. ${job.title}\n`;
+    content += `${i + 1}. ${job.title}${job.page ? ` [Page ${job.page}]` : ''}\n`;
     content += `   URL: ${job.link}\n`;
     content += `   Found at: ${new Date(job.timestamp).toLocaleTimeString()}\n\n`;
   });
@@ -214,7 +218,6 @@ downloadBtn.addEventListener('click', () => {
     setStatus('', 'Go to LinkedIn Jobs to start');
   } else {
     setStatus('', 'Ready to scan');
-    // Ask content if already scanning
     chrome.tabs.sendMessage(tab.id, { action: 'GET_STATUS' }, (resp) => {
       if (chrome.runtime.lastError) return;
       if (resp && resp.isScanning) {

@@ -143,6 +143,13 @@
 
     input::placeholder { color: var(--muted); }
 
+    /* Two-col row */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
     /* Delay row */
     .delay-row {
       display: flex;
@@ -174,6 +181,12 @@
       background: var(--accent);
       cursor: pointer;
       box-shadow: 0 0 6px var(--accent);
+    }
+
+    .field-hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
     }
 
     /* Buttons */
@@ -268,6 +281,19 @@
     }
 
     .current-job span { color: var(--yellow); }
+
+    .page-badge {
+      display: inline-block;
+      background: rgba(124,58,237,0.2);
+      border: 1px solid var(--accent2);
+      color: var(--accent2);
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 20px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
 
     /* Results */
     .results-section { display: none; flex-direction: column; gap: 8px; }
@@ -423,19 +449,24 @@
   </div>
 
   <div class="form-group">
-    <label>Search Keyword</label>
-    <!-- default value includes common experience ranges as requested -->
+    <label>Search Keywords</label>
     <input type="text" id="searchTerm" value="1 year,1+ year, 1-2,1 to 2 year, 0-2 years, 0-3 years, 1-2 years, 1-3 years" placeholder="e.g. React, remote, senior..." />
   </div>
 
-  <div class="form-group">
-    <label>Delay Between Jobs</label>
-    <div class="delay-row">
+  <div class="two-col">
+    <div class="form-group">
+      <label>Delay (ms)</label>
       <input type="number" id="delayInput" value="2000" min="500" max="10000" step="500" />
-      <span class="delay-hint">milliseconds (500–10000)</span>
+      <span class="field-hint">500 – 10000 ms</span>
     </div>
-    <input type="range" id="delayRange" min="500" max="10000" step="500" value="2000" />
+    <div class="form-group">
+      <label>Jobs Per Page</label>
+      <input type="number" id="jobsPerPage" value="5" min="1" max="50" step="1" placeholder="e.g. 5" />
+      <span class="field-hint">then auto next page</span>
+    </div>
   </div>
+
+  <input type="range" id="delayRange" min="500" max="10000" step="500" value="2000" />
 
   <div class="btn-row">
     <button class="btn btn-primary" id="startBtn">▶ START SCAN</button>
@@ -444,7 +475,7 @@
 
   <div class="progress-section" id="progressSection">
     <div class="progress-label">
-      <span>SCANNING</span>
+      <span id="scanningLabel">SCANNING</span>
       <span class="progress-count" id="progressCount">0 / 0</span>
     </div>
     <div class="progress-bar-track">
@@ -466,7 +497,7 @@
 
 </div>
 
-<div class="footer">linkedin job scanner v1.0</div>
+<div class="footer">linkedin job scanner v1.1</div>
 
 <script src="popup.js"></script>
 </body>

@@ -6,16 +6,15 @@ let matchedJobs = [];
 let allJobCards = [];
 let scanDelay = 2000;
 let searchTerm = '';
+let jobsPerPage = 0; // 0 = scan all jobs on page before moving on
 
 // return a random delay within +/-25% of base
 function getRandomDelay(base) {
   const variation = base * 0.25;
-  // random number between -variation and +variation
   return base + (Math.random() * 2 - 1) * variation;
 }
 
 function getJobCards() {
-  // Try multiple selectors for different LinkedIn layouts
   const selectors = [
     '.jobs-search-results__list-item',
     '.job-card-container',
@@ -58,7 +57,6 @@ function getJobLink(card) {
     const el = card.querySelector(sel);
     if (el && el.href) return el.href;
   }
-  // Try any link in card
   const link = card.querySelector('a[href*="/jobs/view/"]');
   if (link) return link.href;
   return null;
@@ -100,7 +98,6 @@ async function clickJobCard(card) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   await sleep(300);
   
-  // Try clicking the title link first
   const link = card.querySelector('a.job-card-list__title, a.job-card-container__link, a[href*="/jobs/view/"]');
   if (link) {
     link.click();
@@ -110,7 +107,6 @@ async function clickJobCard(card) {
   await sleep(500);
 }
 
-// attempt to click the "next page" button in LinkedIn pagination
 function clickNextPage() {
   const selectors = [
     'button[aria-label="Next"]',
@@ -124,7 +120,6 @@ function clickNextPage() {
   for (const sel of selectors) {
     const buttons = document.querySelectorAll(sel);
     for (const btn of buttons) {
-      // Check if button text contains "next" or it's the last button (next button)
       if (!btn.disabled && (btn.getAttribute('aria-label')?.toLowerCase().includes('next') || btn.textContent.toLowerCase().includes('next'))) {
         btn.click();
         return true;
@@ -134,7 +129,6 @@ function clickNextPage() {
   return false;
 }
 
-// Wait for page to load after clicking next
 async function waitForPageLoad(timeout = 5000) {
   const start = Date.now();
   let lastCount = 0;
@@ -142,7 +136,6 @@ async function waitForPageLoad(timeout = 5000) {
   while (Date.now() - start < timeout) {
     const cards = getJobCards();
     if (cards.length > 0 && cards.length !== lastCount) {
-      // Page content changed, wait a bit more to stabilize
       await sleep(500);
       return true;
     }
@@ -154,7 +147,6 @@ async function waitForPageLoad(timeout = 5000) {
 }
 
 async function loadMoreJobs() {
-  // Scroll the job list panel to load more
   const listPanel = document.querySelector(
     '.jobs-search-results-list, .scaffold-layout__list-container, .jobs-search__results-list'
   );
@@ -170,6 +162,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === 'START_SCAN') {
     searchTerm = msg.searchTerm.toLowerCase();
     scanDelay = msg.delay;
+    jobsPerPage = msg.jobsPerPage || 0;
     matchedJobs = [];
     currentJobIndex = 0;
     isScanning = true;
@@ -195,12 +188,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function runScan() {
-  // Loop pages while scanning is active
   let pageNumber = 1;
+  let totalScanned = 0; // cumulative across pages for display
+
   while (isScanning) {
     console.log(`Scanning page ${pageNumber}...`);
     
-    // Initial card collection on this page
     allJobCards = getJobCards();
     
     if (allJobCards.length === 0) {
@@ -208,11 +201,14 @@ async function runScan() {
       break;
     }
 
-    chrome.runtime.sendMessage({ action: 'SCAN_STARTED', total: allJobCards.length });
+    // Determine how many jobs to scan on this page
+    const limit = (jobsPerPage > 0) ? Math.min(jobsPerPage, allJobCards.length) : allJobCards.length;
 
-    for (let i = 0; i < allJobCards.length && isScanning; i++) {
+    chrome.runtime.sendMessage({ action: 'SCAN_STARTED', total: limit, page: pageNumber });
+
+    for (let i = 0; i < limit && isScanning; i++) {
       currentJobIndex = i;
-      
+
       // Refresh card list in case DOM updated
       const freshCards = getJobCards();
       if (freshCards.length > allJobCards.length) {
@@ -225,61 +221,45 @@ async function runScan() {
       const title = getJobTitle(card);
       const link = getJobLink(card);
 
-// Randomly skip 1-2 jobs every ~5 jobs
-const shouldSkip = Math.random() < 0.15; // ~15% chance to skip any given job
-if (shouldSkip) {
-  chrome.runtime.sendMessage({
-    action: 'PROGRESS',
-    current: i + 1,
-    total: allJobCards.length,
-    jobTitle: title,
-    skipped: true,
-    calculatedDelay: null
-  });
-  continue;
-}
+      const jobDelay = getRandomDelay(scanDelay);
 
-const jobDelay = getRandomDelay(scanDelay);
+      chrome.runtime.sendMessage({
+        action: 'PROGRESS',
+        current: i + 1,
+        total: limit,
+        page: pageNumber,
+        jobTitle: title,
+        calculatedDelay: Math.round(jobDelay)
+      });
 
-chrome.runtime.sendMessage({
-  action: 'PROGRESS',
-  current: i + 1,
-  total: allJobCards.length,
-  jobTitle: title,
-  skipped: false,
-  calculatedDelay: Math.round(jobDelay)
-});
+      await clickJobCard(card);
+      await sleep(jobDelay);
 
-// Click the card to load description
-await clickJobCard(card);
-await sleep(jobDelay);
-
-      // Wait for description to load
       const descText = await waitForDescription(jobDelay + 2000);
-
 
       let matched = false;
       if (!searchTerm) {
-        matched = true; // no filter, collect all
+        matched = true;
       } else {
-        // Split by comma, trim whitespace, check each term individually
         const terms = searchTerm.split(',').map(t => t.trim()).filter(t => t.length > 0);
         matched = terms.some(term => descText.includes(term));
       }
 
       if (matched) {
+        totalScanned++;
         const jobData = {
           title,
           link: link || window.location.href,
-          index: i + 1,
+          index: totalScanned,
+          page: pageNumber,
           timestamp: new Date().toISOString()
         };
         matchedJobs.push(jobData);
         chrome.runtime.sendMessage({ action: 'JOB_MATCHED', job: jobData });
       }
 
-      // Try to load more if near end
-      if (i >= allJobCards.length - 3) {
+      // Try to load more if near end (only when not using jobsPerPage limit)
+      if (jobsPerPage === 0 && i >= allJobCards.length - 3) {
         await loadMoreJobs();
         const newCards = getJobCards();
         if (newCards.length > allJobCards.length) {
@@ -288,19 +268,16 @@ await sleep(jobDelay);
       }
     }
 
-    // if scanning stopped by user, break out
     if (!isScanning) break;
 
-    // at end of current page, attempt to advance
+    // Attempt to go to next page
     const moved = clickNextPage();
     if (moved) {
       console.log(`Moving to page ${pageNumber + 1}...`);
       pageNumber++;
-      // Wait for new page to load
       const loadedSuccessfully = await waitForPageLoad(8000);
       if (loadedSuccessfully) {
-        // continue loop to scan new page
-        await sleep(2000); // Give page extra time to stabilize
+        await sleep(2000);
         continue;
       } else {
         console.log('Failed to load next page');
@@ -308,7 +285,6 @@ await sleep(jobDelay);
       }
     }
 
-    // no further pages
     console.log('No more pages to scan');
     break;
   }
